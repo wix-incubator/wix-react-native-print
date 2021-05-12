@@ -1,18 +1,16 @@
 import * as React from 'react';
 
-import { StyleSheet, View, Text } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity } from 'react-native';
 import WixReactNativePrint from 'wix-react-native-print';
 
 export default function App() {
-  const [result, setResult] = React.useState<number | undefined>();
-
-  React.useEffect(() => {
-    WixReactNativePrint.multiply(3, 7).then(setResult);
+  const onPressHandler = React.useCallback(() => {
+    WixReactNativePrint.print({html: '<html><head><title>Test</title><body>Test</body></head></html>'});
   }, []);
 
   return (
     <View style={styles.container}>
-      <Text>Result: {result}</Text>
+      <TouchableOpacity onPress={onPressHandler}><Text>Press</Text></TouchableOpacity>
     </View>
   );
 }
@@ -22,10 +20,5 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  box: {
-    width: 60,
-    height: 60,
-    marginVertical: 20,
   },
 });

@@ -1,7 +1,14 @@
 import { NativeModules } from 'react-native';
 
+type PrintOptionsType = {
+  printerURL?: string;
+  isLandscape?: boolean;
+  jobName?: string;
+} & ({ html: string } | { filePath: string });
+
+
 type WixReactNativePrintType = {
-  multiply(a: number, b: number): Promise<number>;
+  print(options: PrintOptionsType): Promise<any>;
 };
 
 const { WixReactNativePrint } = NativeModules;

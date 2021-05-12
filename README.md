@@ -15,7 +15,7 @@ import WixReactNativePrint from "wix-react-native-print";
 
 // ...
 
-const result = await WixReactNativePrint.multiply(3, 7);
+await WixReactNativePrint.print({filePath: "https://static.wix.com/doc.pdf"});
 ```
 
 ## Contributing
