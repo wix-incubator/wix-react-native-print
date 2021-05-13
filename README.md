@@ -8,6 +8,10 @@ Printing library
 npm install wix-react-native-print
 ```
 
+#### iOS
+
+> TBD
+
 #### Android
 - Edit `android/settings.gradle` to included
 
@@ -37,6 +41,10 @@ packages.add(new WixReactNativePrintPackage());
 ```
 
 ## Usage
+
+#### Supported file extensions
+
+>  "pdf", "png", "jpg", "jpeg", "gif"
 
 ```js
 import WixReactNativePrint from "wix-react-native-print";
