@@ -18,10 +18,9 @@ import java.net.URL
 @RequiresApi(Build.VERSION_CODES.KITKAT)
 class LoaderPrintAdapter(
   private val url: String?,
-  private val promise: Promise,
-  private val name: String
+  private val name: String,
+  private val promise: Promise
 ) : PrintDocumentAdapter() {
-
   override fun onWrite(
     pages: Array<PageRange>,
     destination: ParcelFileDescriptor,

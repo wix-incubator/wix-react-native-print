@@ -22,15 +22,15 @@ import java.net.URL
 
 class WixReactNativePrintModule(var reactContext: ReactApplicationContext) : ReactContextBaseJavaModule(reactContext) {
   companion object {
-    public const val jobName = "PrintingJob"
+    const val jobName = "PrintingJob"
 
-    public enum class ErrorCode {
+    enum class ErrorCode {
       NotFound, MissingParam, UnsupportedExtension
     }
 
-    public val errorMessages = mapOf(
+    val errorMessages = mapOf(
       ErrorCode.NotFound to "File not found",
-      ErrorCode.MissingParam to "Either html or filePath param is missing",
+      ErrorCode.MissingParam to "Either htmlString or url param is missing",
       ErrorCode.UnsupportedExtension to "Unsupported file extension"
     )
   }
@@ -58,8 +58,7 @@ class WixReactNativePrintModule(var reactContext: ReactApplicationContext) : Rea
   private val supportedExtensions = arrayOf(*supportedImageExtensions, *supportedDocumentExtensions)
 
   private fun getFileExtension(url: String?): String {
-    val extension = MimeTypeMap.getFileExtensionFromUrl(url)
-    return extension ?: ""
+    return MimeTypeMap.getFileExtensionFromUrl(url) ?: ""
   }
 
   private fun isExtensionSupported(extension: String?, supportedArr: Array<String>): Boolean {
@@ -67,19 +66,17 @@ class WixReactNativePrintModule(var reactContext: ReactApplicationContext) : Rea
   }
 
   private fun getBitmap(imageURL: String): Bitmap? {
-    var bitmap: Bitmap? = null
     val input = URL(imageURL).openStream()
-    bitmap = BitmapFactory.decodeStream(input)
-    return bitmap
+    return BitmapFactory.decodeStream(input)
   }
 
-  private fun printImage(filePath: String?, isLandscape: Boolean, promise: Promise) {
+  private fun printImage(url: String?, isLandscape: Boolean, promise: Promise) {
     try {
-      val isUrl = URLUtil.isValidUrl(filePath)
+      val isUrl = URLUtil.isValidUrl(url)
       if (isUrl) {
         Thread(Runnable {
           try {
-            val bitmap = getBitmap(filePath!!)
+            val bitmap = getBitmap(url!!)
             currentActivity?.also { context ->
               PrintHelper(context).apply {
                 scaleMode = PrintHelper.SCALE_MODE_FIT
@@ -101,11 +98,9 @@ class WixReactNativePrintModule(var reactContext: ReactApplicationContext) : Rea
   }
 
   @RequiresApi(Build.VERSION_CODES.KITKAT)
-  private fun printDocument(filePath: String?, isLandscape: Boolean, promise: Promise) {
-    val activity = currentActivity!!
-    val printManager =
-      activity.getSystemService(Context.PRINT_SERVICE) as PrintManager
-    val pda: PrintDocumentAdapter = LoaderPrintAdapter(filePath, promise, name)
+  private fun printDocument(url: String?, isLandscape: Boolean, promise: Promise) {
+    val printManager = currentActivity!!.getSystemService(Context.PRINT_SERVICE) as PrintManager
+    val pda: PrintDocumentAdapter = LoaderPrintAdapter(url, name, promise)
     val printAttributes = PrintAttributes.Builder()
       .setMediaSize(if (isLandscape) PrintAttributes.MediaSize.UNKNOWN_LANDSCAPE else PrintAttributes.MediaSize.UNKNOWN_PORTRAIT)
       .build()
@@ -117,17 +112,11 @@ class WixReactNativePrintModule(var reactContext: ReactApplicationContext) : Rea
     UiThreadUtil.runOnUiThread {
       val webView = WebView(reactContext)
       webView.webViewClient = object : WebViewClient() {
-        override fun shouldOverrideUrlLoading(
-          view: WebView,
-          url: String
-        ): Boolean {
+        override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean {
           return false
         }
 
-        override fun onPageFinished(
-          view: WebView,
-          url: String
-        ) {
+        override fun onPageFinished(view: WebView, url: String) {
           val printManager = currentActivity!!.getSystemService(Context.PRINT_SERVICE) as PrintManager
           val adapter: PrintDocumentAdapter = HtmlPrintAdapter(mWebView)
           printManager.print(jobName, adapter, null)
@@ -136,7 +125,6 @@ class WixReactNativePrintModule(var reactContext: ReactApplicationContext) : Rea
         }
       }
       webView.loadDataWithBaseURL(null, html, "text/HTML", "UTF-8", null)
-
       mWebView = webView
     }
   }
@@ -146,10 +134,11 @@ class WixReactNativePrintModule(var reactContext: ReactApplicationContext) : Rea
   fun print(options: ReadableMap, promise: Promise) {
     val html = optionKeys[KeyCode.HtmlString]?.let { options.getString(it) }
     val url = optionKeys[KeyCode.Url]?.let { options.getString(it) }
-    val isLandscape = if (options.hasKey(optionKeys[KeyCode.IsLandscape]!!))
-      options.getBoolean(optionKeys[KeyCode.IsLandscape]!!) else false
+    val isLandscape = optionKeys[KeyCode.IsLandscape]?.let {
+      if (options.hasKey(it)) options.getBoolean(it) else false
+    } ?: false
 
-    if (html == null && url == null || html != null && url != null) {
+    if (!(html == null).xor(url == null)) {
       promise.reject(name, errorMessages[ErrorCode.MissingParam])
       return
     }

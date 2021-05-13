@@ -11,9 +11,8 @@ import android.webkit.WebView
 import androidx.annotation.RequiresApi
 
 @RequiresApi(Build.VERSION_CODES.KITKAT)
-class HtmlPrintAdapter(mWebView: WebView?): PrintDocumentAdapter() {
-    private val mWrappedInstance =
-        mWebView!!.createPrintDocumentAdapter()
+class HtmlPrintAdapter(mWebView: WebView?) : PrintDocumentAdapter() {
+    private val mWrappedInstance = mWebView!!.createPrintDocumentAdapter()
 
     override fun onStart() {
         mWrappedInstance.onStart()
@@ -26,10 +25,7 @@ class HtmlPrintAdapter(mWebView: WebView?): PrintDocumentAdapter() {
         callback: LayoutResultCallback,
         extras: Bundle
     ) {
-        mWrappedInstance.onLayout(
-            oldAttributes, newAttributes, cancellationSignal,
-            callback, extras
-        )
+        mWrappedInstance.onLayout(oldAttributes, newAttributes, cancellationSignal, callback, extras)
     }
 
     override fun onWrite(
@@ -38,12 +34,7 @@ class HtmlPrintAdapter(mWebView: WebView?): PrintDocumentAdapter() {
         cancellationSignal: CancellationSignal,
         callback: WriteResultCallback
     ) {
-        mWrappedInstance.onWrite(
-            pages,
-            destination,
-            cancellationSignal,
-            callback
-        )
+        mWrappedInstance.onWrite(pages, destination, cancellationSignal, callback)
     }
 
     override fun onFinish() {
