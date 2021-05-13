@@ -1,10 +1,8 @@
 import { NativeModules } from 'react-native';
 
 type PrintOptionsType = {
-  printerURL?: string;
   isLandscape?: boolean;
-  jobName?: string;
-} & ({ html: string } | { filePath: string });
+} & ({ htmlString: string } | { url: string });
 
 
 type WixReactNativePrintType = {

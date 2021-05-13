@@ -11,7 +11,7 @@ import android.webkit.WebView
 import androidx.annotation.RequiresApi
 
 @RequiresApi(Build.VERSION_CODES.KITKAT)
-class HtmlPrintAdapter(mWebView: WebView?) : PrintDocumentAdapter() {
+class HtmlPrintAdapter(mWebView: WebView?): PrintDocumentAdapter() {
     private val mWrappedInstance =
         mWebView!!.createPrintDocumentAdapter()
 

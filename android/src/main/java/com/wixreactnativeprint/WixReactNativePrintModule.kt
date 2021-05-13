@@ -1,100 +1,182 @@
 package com.wixreactnativeprint
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.os.Build
 import android.print.PrintAttributes
 import android.print.PrintDocumentAdapter
 import android.print.PrintManager
+import android.webkit.MimeTypeMap
+import android.webkit.URLUtil
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.annotation.RequiresApi
+import androidx.print.PrintHelper
 import com.facebook.react.bridge.*
 import com.wix.wixreactnativeprint.HtmlPrintAdapter
 import com.wix.wixreactnativeprint.LoaderPrintAdapter
+import java.io.FileNotFoundException
+import java.net.URL
+
 
 class WixReactNativePrintModule(var reactContext: ReactApplicationContext) : ReactContextBaseJavaModule(reactContext) {
+  companion object {
+    public const val jobName = "PrintingJob"
+
+    public enum class ErrorCode {
+      NotFound, MissingParam, UnsupportedExtension
+    }
+
+    public val errorMessages = mapOf(
+      ErrorCode.NotFound to "File not found",
+      ErrorCode.MissingParam to "Either html or filePath param is missing",
+      ErrorCode.UnsupportedExtension to "Unsupported file extension"
+    )
+  }
 
   override fun getName(): String {
     return "WixReactNativePrint"
   }
 
-  val jobName = "Document"
+  private var mWebView: WebView? = null
 
-  private companion object {
-    const val htmlKey = "html"
-    const val filePathKey = "filePath"
-    const val isLandscapeKey = "isLandscape"
+  private enum class KeyCode {
+    HtmlString, Url, IsLandscape
   }
 
-  var mWebView: WebView? = null
+  private val optionKeys = mapOf(
+    KeyCode.HtmlString to "htmlString",
+    KeyCode.Url to "url",
+    KeyCode.IsLandscape to "isLandscape"
+  )
+
+  private val supportedImageExtensions = arrayOf("png", "jpg", "jpeg", "gif")
+
+  private val supportedDocumentExtensions = arrayOf("pdf")
+
+  private val supportedExtensions = arrayOf(*supportedImageExtensions, *supportedDocumentExtensions)
+
+  private fun getFileExtension(url: String?): String {
+    val extension = MimeTypeMap.getFileExtensionFromUrl(url)
+    return extension ?: ""
+  }
+
+  private fun isExtensionSupported(extension: String?, supportedArr: Array<String>): Boolean {
+    return supportedArr.contains(extension!!)
+  }
+
+  private fun getBitmap(imageURL: String): Bitmap? {
+    var bitmap: Bitmap? = null
+    val input = URL(imageURL).openStream()
+    bitmap = BitmapFactory.decodeStream(input)
+    return bitmap
+  }
+
+  private fun printImage(filePath: String?, isLandscape: Boolean, promise: Promise) {
+    try {
+      val isUrl = URLUtil.isValidUrl(filePath)
+      if (isUrl) {
+        Thread(Runnable {
+          try {
+            val bitmap = getBitmap(filePath!!)
+            currentActivity?.also { context ->
+              PrintHelper(context).apply {
+                scaleMode = PrintHelper.SCALE_MODE_FIT
+                orientation = if (isLandscape) PrintHelper.ORIENTATION_LANDSCAPE else PrintHelper.ORIENTATION_PORTRAIT
+              }.also { printHelper ->
+                printHelper.printBitmap(jobName, bitmap!!)
+              }
+            }
+          } catch (e: Exception) {
+            promise.reject(name, e)
+          }
+        }).start()
+      }
+    } catch (ee: FileNotFoundException) {
+      promise.reject(name, errorMessages[ErrorCode.NotFound])
+    } catch (e: Exception) {
+      promise.reject(name, e)
+    }
+  }
+
+  @RequiresApi(Build.VERSION_CODES.KITKAT)
+  private fun printDocument(filePath: String?, isLandscape: Boolean, promise: Promise) {
+    val activity = currentActivity!!
+    val printManager =
+      activity.getSystemService(Context.PRINT_SERVICE) as PrintManager
+    val pda: PrintDocumentAdapter = LoaderPrintAdapter(filePath, promise, name)
+    val printAttributes = PrintAttributes.Builder()
+      .setMediaSize(if (isLandscape) PrintAttributes.MediaSize.UNKNOWN_LANDSCAPE else PrintAttributes.MediaSize.UNKNOWN_PORTRAIT)
+      .build()
+    printManager.print(jobName, pda, printAttributes)
+  }
+
+  @RequiresApi(Build.VERSION_CODES.KITKAT)
+  private fun printHtml(html: String, promise: Promise) {
+    UiThreadUtil.runOnUiThread {
+      val webView = WebView(reactContext)
+      webView.webViewClient = object : WebViewClient() {
+        override fun shouldOverrideUrlLoading(
+          view: WebView,
+          url: String
+        ): Boolean {
+          return false
+        }
+
+        override fun onPageFinished(
+          view: WebView,
+          url: String
+        ) {
+          val printManager = currentActivity!!.getSystemService(Context.PRINT_SERVICE) as PrintManager
+          val adapter: PrintDocumentAdapter = HtmlPrintAdapter(mWebView)
+          printManager.print(jobName, adapter, null)
+          mWebView = null
+          promise.resolve(name)
+        }
+      }
+      webView.loadDataWithBaseURL(null, html, "text/HTML", "UTF-8", null)
+
+      mWebView = webView
+    }
+  }
 
   @RequiresApi(Build.VERSION_CODES.KITKAT)
   @ReactMethod
   fun print(options: ReadableMap, promise: Promise) {
-    val html = if (options.hasKey(htmlKey)) options.getString(htmlKey) else null
-    val filePath =
-      if (options.hasKey(filePathKey)) options.getString(filePathKey) else null
-    val isLandscape =
-      if (options.hasKey(isLandscapeKey)) options.getBoolean(isLandscapeKey) else false
-    if (html == null && filePath == null || html != null && filePath != null) {
-      promise.reject(
-        name,
-        "Must provide either `html` or `filePath`.  Both are either missing or passed together"
-      )
+    val html = optionKeys[KeyCode.HtmlString]?.let { options.getString(it) }
+    val url = optionKeys[KeyCode.Url]?.let { options.getString(it) }
+    val isLandscape = if (options.hasKey(optionKeys[KeyCode.IsLandscape]!!))
+      options.getBoolean(optionKeys[KeyCode.IsLandscape]!!) else false
+
+    if (html == null && url == null || html != null && url != null) {
+      promise.reject(name, errorMessages[ErrorCode.MissingParam])
       return
     }
-    if (html != null) {
-      try {
-        UiThreadUtil.runOnUiThread { // Create a WebView object specifically for printing
-          val webView = WebView(reactContext)
-          webView.webViewClient = object : WebViewClient() {
-            override fun shouldOverrideUrlLoading(
-              view: WebView,
-              url: String
-            ): Boolean {
-              return false
-            }
 
-            @RequiresApi(Build.VERSION_CODES.KITKAT)
-            override fun onPageFinished(
-              view: WebView,
-              url: String
-            ) {
-              // Get the print manager.
-              val printManager =
-                currentActivity!!.getSystemService(
-                  Context.PRINT_SERVICE
-                ) as PrintManager
-              // Create a wrapper PrintDocumentAdapter to clean up when done.
-              val adapter: PrintDocumentAdapter = HtmlPrintAdapter(mWebView)
-              // Pass in the ViewView's document adapter.
-              printManager.print(jobName, adapter, null)
-              mWebView = null
-              promise.resolve(jobName)
-            }
-          }
-          webView.loadDataWithBaseURL(null, html, "text/HTML", "UTF-8", null)
+    try {
+      if (html != null) {
+        printHtml(html, promise)
+      } else {
+        val extension = getFileExtension(url)
 
-          // Keep a reference to WebView object until you pass the PrintDocumentAdapter
-          // to the PrintManager
-          mWebView = webView
+        if (!isExtensionSupported(extension, supportedExtensions)) {
+          promise.reject(name, errorMessages[ErrorCode.UnsupportedExtension])
+          return
         }
-      } catch (e: Exception) {
-        promise.reject("print_error", e)
+
+        val isImage = isExtensionSupported(extension, supportedImageExtensions)
+
+        if (isImage) {
+          printImage(url, isLandscape, promise)
+        } else {
+          printDocument(url, isLandscape, promise)
+        }
+
+        promise.resolve(name)
       }
-    } else {
-      try {
-        val printManager =
-          currentActivity!!.getSystemService(Context.PRINT_SERVICE) as PrintManager
-        val pda: PrintDocumentAdapter = LoaderPrintAdapter(filePath, promise, name)
-        val printAttributes = PrintAttributes.Builder()
-          .setMediaSize(if (isLandscape) PrintAttributes.MediaSize.UNKNOWN_LANDSCAPE else PrintAttributes.MediaSize.UNKNOWN_PORTRAIT)
-          .build()
-        printManager.print(jobName, pda, printAttributes)
-        promise.resolve(jobName)
-      } catch (e: Exception) {
-        promise.reject(name, e)
-      }
+    } catch (e: Exception) {
+      promise.reject(name, e)
     }
   }
 }
