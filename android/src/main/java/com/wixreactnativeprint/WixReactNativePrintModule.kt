@@ -30,7 +30,7 @@ class WixReactNativePrintModule(var reactContext: ReactApplicationContext) : Rea
 
     val errorMessages = mapOf(
       ErrorCode.NotFound to "File not found",
-      ErrorCode.MissingParam to "Either htmlString or url param is missing",
+      ErrorCode.MissingParam to "Missing param",
       ErrorCode.UnsupportedExtension to "Unsupported file extension"
     )
   }
@@ -131,39 +131,51 @@ class WixReactNativePrintModule(var reactContext: ReactApplicationContext) : Rea
 
   @RequiresApi(Build.VERSION_CODES.KITKAT)
   @ReactMethod
-  fun print(options: ReadableMap, promise: Promise) {
+  fun printHtml(options: ReadableMap, promise: Promise) {
     val html = optionKeys[KeyCode.HtmlString]?.let { options.getString(it) }
+
+    if (html == null) {
+      promise.reject(name, "${errorMessages[ErrorCode.MissingParam]}: html")
+      return
+    }
+
+    try {
+      printHtml(html, promise)
+    } catch (e: Exception) {
+      promise.reject(name, e)
+    }
+  }
+
+  @RequiresApi(Build.VERSION_CODES.KITKAT)
+  @ReactMethod
+  fun printUrl(options: ReadableMap, promise: Promise) {
     val url = optionKeys[KeyCode.Url]?.let { options.getString(it) }
     val isLandscape = optionKeys[KeyCode.IsLandscape]?.let {
       if (options.hasKey(it)) options.getBoolean(it) else false
     } ?: false
 
-    if (!(html == null).xor(url == null)) {
-      promise.reject(name, errorMessages[ErrorCode.MissingParam])
+    if (url == null) {
+      promise.reject(name, "${errorMessages[ErrorCode.MissingParam]}: url")
       return
     }
 
     try {
-      if (html != null) {
-        printHtml(html, promise)
-      } else {
-        val extension = getFileExtension(url)
+      val extension = getFileExtension(url)
 
-        if (!isExtensionSupported(extension, supportedExtensions)) {
-          promise.reject(name, errorMessages[ErrorCode.UnsupportedExtension])
-          return
-        }
-
-        val isImage = isExtensionSupported(extension, supportedImageExtensions)
-
-        if (isImage) {
-          printImage(url, isLandscape, promise)
-        } else {
-          printDocument(url, isLandscape, promise)
-        }
-
-        promise.resolve(name)
+      if (!isExtensionSupported(extension, supportedExtensions)) {
+        promise.reject(name, "${errorMessages[ErrorCode.UnsupportedExtension]}: $extension")
+        return
       }
+
+      val isImage = isExtensionSupported(extension, supportedImageExtensions)
+
+      if (isImage) {
+        printImage(url, isLandscape, promise)
+      } else {
+        printDocument(url, isLandscape, promise)
+      }
+
+      promise.resolve(name)
     } catch (e: Exception) {
       promise.reject(name, e)
     }

@@ -49,19 +49,14 @@ packages.add(new WixReactNativePrintPackage());
 ```js
 import WixReactNativePrint from "wix-react-native-print";
 
-// print PDF file
-await WixReactNativePrint.print({
-  isLandscape: true,
+// print file from url
+await WixReactNativePrint.printUrl({
   url: "https://static.wix.com/doc.pdf",
+  isLandscape: true,
 });
 
-// print image file
-await WixReactNativePrint.print({
-  url: "https://static.wix.com/image.png",
-});
-
-// print html file
-await WixReactNativePrint.print({
+// print html string
+await WixReactNativePrint.printHtml({
   htmlString: "<html><head><title>Test</title><body>Test</body></head></html>",
 });
 ```

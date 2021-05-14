@@ -7,7 +7,7 @@ export default function App() {
   const [error, setError] = React.useState(null);
   const printHtmlHandler = React.useCallback(async () => {
     try {
-      await WixReactNativePrint.print({ htmlString: '<html><head><title>Test</title><body>Test</body></head></html>' });
+      await WixReactNativePrint.printHtml({ htmlString: '<html><head><title>Test</title><body>Test</body></head></html>' });
       setError(null);
     } catch (e) {
       setError(e);
@@ -15,7 +15,7 @@ export default function App() {
   }, []);
   const printPdfHandler = React.useCallback(async () => {
     try {
-      await WixReactNativePrint.print({ url: 'http://www.orimi.com/pdf-test.pdf' });
+      await WixReactNativePrint.printUrl({ url: 'http://www.orimi.com/pdf-test.pdf' });
       setError(null);
     } catch (e) {
       setError(e);
@@ -23,7 +23,7 @@ export default function App() {
   }, []);
   const printImageHandler = React.useCallback(async (url) => {
     try {
-      await WixReactNativePrint.print({ url });
+      await WixReactNativePrint.printUrl({ url });
       setError(null);
     } catch (e) {
       setError(e);

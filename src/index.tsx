@@ -1,14 +1,23 @@
 import { NativeModules } from 'react-native';
 
-type PrintOptionsType = {
+interface PrintOptions {
   isLandscape?: boolean;
-} & ({ htmlString: string } | { url: string });
+}
 
+interface PrintHtml extends PrintOptions {
+  htmlString: string
+}
 
-type WixReactNativePrintType = {
-  print(options: PrintOptionsType): Promise<any>;
-};
+interface PrintUrl extends PrintOptions {
+  url: string
+}
+
+interface WixReactNativePrintType {
+  printHtml(options: PrintHtml): Promise<any>;
+  printUrl(options: PrintUrl): Promise<any>;
+}
 
 const { WixReactNativePrint } = NativeModules;
 
 export default WixReactNativePrint as WixReactNativePrintType;
+
