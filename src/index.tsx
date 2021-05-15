@@ -5,11 +5,11 @@ interface PrintOptions {
 }
 
 interface PrintHtml extends PrintOptions {
-  htmlString: string
+  htmlString: string;
 }
 
 interface PrintUrl extends PrintOptions {
-  url: string
+  url: string;
 }
 
 interface WixReactNativePrintType {
@@ -18,6 +18,6 @@ interface WixReactNativePrintType {
 }
 
 const { WixReactNativePrint } = NativeModules;
+const { printHtml, printUrl } = WixReactNativePrint as WixReactNativePrintType;
 
-export default WixReactNativePrint as WixReactNativePrintType;
-
+export { printHtml, printUrl };
